@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import Confetti from 'react-confetti';
 import type { Performer, Booking, BookingStatus, DoNotServeEntry, Communication, Service } from '../types';
 import { allServices } from '../data/mockData';
 import { DEPOSIT_PERCENTAGE } from '../constants';
@@ -50,6 +51,30 @@ interface FileUploadFieldProps {
   accept: string;
   error?: string;
 }
+
+// Custom hook for window dimensions
+const useWindowSize = () => {
+  const [size, setSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return size;
+};
 
 const FileUploadField: React.FC<FileUploadFieldProps> = ({ file, setFile, id, label, accept, error }) => {
     const [internalError, setInternalError] = useState('');
@@ -156,6 +181,7 @@ const ProgressIndicator: React.FC<{ currentStep: number }> = ({ currentStep }) =
 
 
 const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onBookingSubmitted, bookings, onUpdateBookingStatus, onBookingRequest, doNotServeList, addCommunication, onShowPrivacyPolicy, onShowTermsOfService, initialSelectedServices = [] }) => {
+    const { width, height } = useWindowSize();
     const [stage, setStage] = useState<BookingStage>('form');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(1);
@@ -627,9 +653,18 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
 
     if (stage === 'confirmed') {
         return (
-             <StatusScreen icon={CheckCircle} title="Booking Confirmed!" buttonText="Return to Gallery" onButtonClick={onBookingSubmitted} bgColor="bg-gradient-to-br from-green-900/30 to-zinc-900">
-                <p>Your booking with <strong>{performers.map(p => p.name).join(', ')}</strong> is confirmed! We have received your deposit and sent a confirmation email to {form.email}.</p>
-             </StatusScreen>
+            <>
+                <Confetti
+                    width={width}
+                    height={height}
+                    recycle={false}
+                    numberOfPieces={400}
+                    gravity={0.1}
+                />
+                <StatusScreen icon={CheckCircle} title="Booking Confirmed!" buttonText="Return to Gallery" onButtonClick={onBookingSubmitted} bgColor="bg-gradient-to-br from-green-900/30 to-zinc-900">
+                    <p>Your booking with <strong>{performers.map(p => p.name).join(', ')}</strong> is confirmed! We have received your deposit and sent a confirmation email to {form.email}.</p>
+                </StatusScreen>
+            </>
         )
     }
 
