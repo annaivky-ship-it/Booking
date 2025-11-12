@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Briefcase, ChevronDown, ShoppingCart, Radio, LoaderCircle, CalendarCheck, Clock, Users, X, MapPin, BookOpen, LogIn, LogOut, Sparkles } from 'lucide-react';
+import { Briefcase, ChevronDown, ShoppingCart, Radio, LoaderCircle, CalendarCheck, Clock, Users, X, MapPin, BookOpen, LogIn, LogOut, Sparkles, ArrowUpDown } from 'lucide-react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import PerformerCard from './components/EntertainerCard';
@@ -539,6 +539,7 @@ const App: React.FC = () => {
   
   const [categoryFilter, setCategoryFilter] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState<PerformerStatus | ''>('');
+  const [sortBy, setSortBy] = useState<'status' | 'name'>('status');
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
@@ -575,7 +576,7 @@ const App: React.FC = () => {
 
     const lowerCaseQuery = searchQuery.toLowerCase().trim();
 
-    return basePerformers.filter(p => {
+    const filtered = basePerformers.filter(p => {
        const categoryMatch = !categoryFilter || p.service_ids.some(id => {
             const service = allServices.find(s => s.id === id);
             return service && service.category === categoryFilter;
@@ -597,7 +598,21 @@ const App: React.FC = () => {
 
        return categoryMatch && availabilityMatch && searchMatch && serviceIdMatch && serviceAreaMatch;
     });
-  }, [performers, categoryFilter, availabilityFilter, view, searchQuery, serviceIdFilter, serviceAreaFilter]);
+
+    const statusOrder: Record<PerformerStatus, number> = { available: 1, busy: 2, offline: 3 };
+
+    return filtered.sort((a, b) => {
+        if (sortBy === 'status') {
+            const orderA = statusOrder[a.status];
+            const orderB = statusOrder[b.status];
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+        }
+        // Secondary sort by name, or primary if sorting by name
+        return a.name.localeCompare(b.name);
+    });
+  }, [performers, categoryFilter, availabilityFilter, view, searchQuery, serviceIdFilter, serviceAreaFilter, sortBy]);
 
 
   if (!ageVerified) {
@@ -754,7 +769,7 @@ const App: React.FC = () => {
                 }
               </p>
             </div>
-            <div className={`mb-8 p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl max-w-3xl mx-auto grid grid-cols-1 ${!isAvailableNow ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
+            <div className={`mb-8 p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl max-w-4xl mx-auto grid grid-cols-1 ${!isAvailableNow ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
               <div className="relative">
                 <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
                 <select onChange={(e) => setCategoryFilter(e.target.value)} value={categoryFilter} className="input-base input-with-icon appearance-none">
@@ -783,6 +798,14 @@ const App: React.FC = () => {
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
               </div>
               )}
+               <div className="relative">
+                <ArrowUpDown className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                <select onChange={(e) => setSortBy(e.target.value as 'status' | 'name')} value={sortBy} className="input-base input-with-icon appearance-none">
+                  <option value="status">Sort by Status</option>
+                  <option value="name">Sort by Name (A-Z)</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
               {filteredPerformers.map((performer) => (
