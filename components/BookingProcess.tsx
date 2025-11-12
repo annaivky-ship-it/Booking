@@ -471,6 +471,10 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                          <InputField icon={<User />} type="text" name="fullName" placeholder="Full Name" value={form.fullName} onChange={handleChange} required error={fieldErrors.fullName} />
                          <InputField icon={<Mail />} type="email" name="email" placeholder="Email Address" value={form.email} onChange={handleChange} required error={fieldErrors.email} />
                          <InputField icon={<Phone />} type="tel" name="mobile" placeholder="Mobile (e.g., 0412 345 678)" value={form.mobile} onChange={handleChange} required error={fieldErrors.mobile} />
+                         <div className="p-3 text-xs text-blue-200 bg-blue-900/30 rounded-lg border border-blue-500/50 flex items-start gap-2">
+                             <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                             <span>Your privacy is important. Your contact details will only be shared with the performer after your booking is confirmed. All SMS communications will come from our secure service number.</span>
+                         </div>
                     </div>
                 )}
 

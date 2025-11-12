@@ -38,6 +38,8 @@ export interface Performer {
   service_areas: ServiceArea[];
   status: PerformerStatus;
   created_at: string;
+  phone: string;
+  role?: 'admin';
 }
 
 export interface Booking {

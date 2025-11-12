@@ -17,6 +17,7 @@ import ServicesGallery from './components/ServicesGallery';
 // Fix: Import the DemoPhone component to resolve the 'Cannot find name' error.
 import DemoPhone from './components/DemoPhone';
 import { api, resetDemoData } from './services/api';
+import { twilioService } from './services/twilioService';
 import type { Performer, Booking, Role, PerformerStatus, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PhoneMessage, ServiceArea } from './types';
 import { allServices } from './data/mockData';
 import { calculateBookingCost } from './utils/bookingUtils';
@@ -194,7 +195,7 @@ const App: React.FC = () => {
     }
   };
   
-  const handleUpdateBookingStatus = async (bookingId: string, status: BookingStatus) => {
+  const handleUpdateBookingStatus = useCallback(async (bookingId: string, status: BookingStatus) => {
     const originalBookings = bookings;
     const booking = originalBookings.find(b => b.id === bookingId);
     if (!booking) return;
@@ -215,6 +216,7 @@ const App: React.FC = () => {
       if (apiError) throw apiError;
 
       // Notifications on success
+      const performer = performers.find(p => p.id === booking.performer_id);
       const { totalCost, depositAmount } = calculateBookingCost(booking.duration_hours, booking.services_requested, 1);
       const finalBalance = totalCost - depositAmount;
       
@@ -225,14 +227,22 @@ const App: React.FC = () => {
       };
       
       const clientMessage = clientMessageMap[status as keyof typeof clientMessageMap];
-      if (clientMessage) addCommunication({ sender: 'System', recipient: 'user', message: clientMessage, booking_id: bookingId, type: 'booking_update' });
+      if (clientMessage) {
+        addCommunication({ sender: 'System', recipient: 'user', message: clientMessage, booking_id: bookingId, type: 'booking_update' });
+        twilioService.notifyClientOfBookingUpdate(booking, clientMessage);
+      }
       
       if (status === 'deposit_pending') showPhoneMessage({ for: 'Client', content: <p>🎉 <strong>Booking Approved!</strong><br />Your application for {booking.event_type} with <strong>{booking.performer?.name}</strong> is approved. Please pay the <strong>${depositAmount.toFixed(2)}</strong> deposit via the booking page to confirm your event.</p> });
       
       if (status === 'confirmed') {
+        const confirmationMessage = `🎉 Booking Confirmed! Your event with ${booking.performer?.name} is locked in. Final balance of $${finalBalance.toFixed(2)} due in cash on arrival. See you on ${new Date(booking.event_date).toLocaleDateString()}!`;
         showPhoneMessage({ for: 'Client', content: <p>✅ <strong>Booking Confirmed!</strong><br/>Your event with <strong>{booking.performer?.name}</strong> is locked in. See you on {new Date(booking.event_date).toLocaleDateString()}!<br/><br/><span className="text-xs">Final balance of <strong>${finalBalance.toFixed(2)}</strong> due in cash on arrival.</span></p> });
-        addCommunication({ sender: 'System', recipient: 'user', message: `🎉 Booking Confirmed! Your event with ${booking.performer?.name} is locked in. Final balance of $${finalBalance.toFixed(2)} due in cash on arrival. See you on ${new Date(booking.event_date).toLocaleDateString()}!`, booking_id: bookingId, type: 'booking_confirmation' });
+        addCommunication({ sender: 'System', recipient: 'user', message: confirmationMessage, booking_id: bookingId, type: 'booking_confirmation' });
+        twilioService.notifyClientOfBookingUpdate(booking, confirmationMessage);
         
+        if (performer) {
+            twilioService.notifyPerformerOfConfirmedBookingDetails(booking, performer);
+        }
         setTimeout(() => showPhoneMessage({ for: 'Performer', content: <p>💰 <strong>DEPOSIT PAID!</strong><br />Your booking is confirmed:<br />👤 Client: <strong>{booking.client_name}</strong><br />📞 Phone: {booking.client_phone}<br />📍 Address: {booking.event_address}<br />📅 When: {new Date(booking.event_date).toLocaleDateString()}, {booking.event_time}<br />👥 Guests: {booking.number_of_guests}<br />{booking.client_message && <><br/>📝 <strong>Note:</strong> "{booking.client_message}"</>}<br/><br/>She's coming in hot 🔥 Get ready!</p>}), 6000);
         setTimeout(() => showPhoneMessage({ for: 'Admin', content: <p>✅ <strong>DEPOSIT CONFIRMED</strong><br/>Booking locked in:<br/>👤 Client: <strong>{booking.client_name}</strong><br/>🍑 Performer: <strong>{booking.performer?.name}</strong><br/>📅 When: {new Date(booking.event_date).toLocaleDateString()}, {booking.event_time}<br/><br/>Booking ID: #{booking.id.slice(0, 8)}...</p> }), 12000);
       }
@@ -240,11 +250,14 @@ const App: React.FC = () => {
       const performerMessageMap = {
             deposit_pending: `✅ Booking Vetted! The application from ${booking.client_name} for ${new Date(booking.event_date).toLocaleDateString()} has been approved. Awaiting deposit.`,
             rejected: `❗️ Booking Rejected: The application from ${booking.client_name} for ${new Date(booking.event_date).toLocaleDateString()} has been rejected.`,
-            confirmed: `🎉 BOOKING CONFIRMED! The deposit for your event with ${booking.client_name} on ${new Date(booking.event_date).toLocaleDateString()} is paid. Client Address: ${booking.event_address}. Phone: ${booking.client_phone}.`,
+            confirmed: `🎉 BOOKING CONFIRMED! The deposit for your event with ${booking.client_name} on ${new Date(booking.event_date).toLocaleDateString()} is paid. Client details have been sent to you via WhatsApp.`,
       };
       
       const performerMessage = performerMessageMap[status as keyof typeof performerMessageMap];
-      if(performerMessage) addCommunication({ sender: 'System', recipient: booking.performer_id, message: performerMessage, booking_id: bookingId, type: 'booking_update' });
+      if(performerMessage && performer) {
+        addCommunication({ sender: 'System', recipient: booking.performer_id, message: performerMessage, booking_id: bookingId, type: 'booking_update' });
+        twilioService.notifyPerformerOfBookingUpdate(booking, performer, performerMessage);
+      }
 
       const adminMessageMap = {
           pending_deposit_confirmation: `🧾 Client for booking #${bookingId.slice(0, 8)} (${booking.client_name}) has confirmed deposit payment. Please verify.`,
@@ -260,7 +273,7 @@ const App: React.FC = () => {
         setBookings(originalBookings); // Revert
         setError("Could not update booking status.");
     }
-  };
+  }, [bookings, performers, addCommunication, showPhoneMessage]);
   
   const handleUpdateDoNotServeStatus = async (entryId: string, status: DoNotServeStatus) => {
       const entry = doNotServeList.find(e => e.id === entryId);
@@ -297,11 +310,12 @@ const App: React.FC = () => {
       }
   };
 
-  const handlePerformerBookingDecision = async (bookingId: string, decision: 'accepted' | 'declined', eta?: number) => {
+  const handlePerformerBookingDecision = useCallback(async (bookingId: string, decision: 'accepted' | 'declined', eta?: number) => {
       const booking = bookings.find(b => b.id === bookingId);
       if(!booking) return;
 
       const performerName = booking.performer?.name || 'The performer';
+      const performer = performers.find(p => p.id === booking.performer_id);
       
       if (decision === 'declined') {
         await handleUpdateBookingStatus(bookingId, 'rejected');
@@ -332,23 +346,29 @@ const App: React.FC = () => {
 
         if (isVerifiedBooker) {
           addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking from verified client ${booking.client_name}${etaMessagePartAdmin}. It has automatically skipped vetting and is awaiting deposit.`, type: 'admin_message' });
-          addCommunication({ sender: 'System', recipient: 'user', message: `${performerName} has accepted your request!${etaMessagePartUser} As a verified client, you can now proceed to payment.`, booking_id: booking.id, type: 'booking_update' });
-          
-          // Fix: Send notifications for 'deposit_pending' without a redundant API call.
+          const clientVipMessage = `${performerName} has accepted your request!${etaMessagePartUser} As a verified client, you can now proceed to payment.`;
+          addCommunication({ sender: 'System', recipient: 'user', message: clientVipMessage, booking_id: booking.id, type: 'booking_update' });
+          twilioService.notifyClientOfBookingUpdate(booking, clientVipMessage);
+
+          const performerVipMessage = `✅ Booking Vetted! The application from ${booking.client_name} for ${new Date(booking.event_date).toLocaleDateString()} has been approved. Awaiting deposit.`;
+          addCommunication({ sender: 'System', recipient: booking.performer_id, message: performerVipMessage, booking_id: booking.id, type: 'booking_update' });
+          if(performer) twilioService.notifyPerformerOfBookingUpdate(booking, performer, performerVipMessage);
+
           const { depositAmount } = calculateBookingCost(booking.duration_hours, booking.services_requested, 1);
           showPhoneMessage({ for: 'Client', content: <p>🎉 <strong>Booking Approved!</strong><br />Your application for {booking.event_type} with <strong>{booking.performer?.name}</strong> is approved. Please pay the <strong>${depositAmount.toFixed(2)}</strong> deposit via the booking page to confirm your event.</p> });
-          addCommunication({ sender: 'System', recipient: booking.performer_id, message: `✅ Booking Vetted! The application from ${booking.client_name} for ${new Date(booking.event_date).toLocaleDateString()} has been approved. Awaiting deposit.`, booking_id: booking.id, type: 'booking_update' });
 
         } else {
           addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking request from ${booking.client_name}${etaMessagePartAdmin}. It is now pending your vetting.`, type: 'admin_message' });
-          addCommunication({ sender: 'System', recipient: 'user', message: `${performerName} has accepted your request!${etaMessagePartUser} Your booking is now with our admin team for final review.`, booking_id: booking.id, type: 'booking_update' });
+          const clientVettingMessage = `${performerName} has accepted your request!${etaMessagePartUser} Your booking is now with our admin team for final review.`;
+          addCommunication({ sender: 'System', recipient: 'user', message: clientVettingMessage, booking_id: booking.id, type: 'booking_update' });
+          twilioService.notifyClientOfBookingUpdate(booking, clientVettingMessage);
         }
       } catch (err) {
           console.error("Failed performer decision update:", err);
           setBookings(originalBookings);
           setError("Failed to process performer decision.");
       }
-  };
+  }, [bookings, performers, handleUpdateBookingStatus, addCommunication, showPhoneMessage]);
   
   const handleAdminBookingDecisionForPerformer = async (bookingId: string, decision: 'accepted' | 'declined') => {
       const booking = bookings.find(b => b.id === bookingId);
@@ -358,12 +378,13 @@ const App: React.FC = () => {
       await handlePerformerBookingDecision(bookingId, decision, undefined);
   }
 
-  const handleAdminChangePerformer = async (bookingId: string, newPerformerId: number) => {
+  const handleAdminChangePerformer = useCallback(async (bookingId: string, newPerformerId: number) => {
     const booking = bookings.find(b => b.id === bookingId);
     const newPerformer = performers.find(p => p.id === newPerformerId);
     if (!booking || !newPerformer) return;
     
     const oldPerformerId = booking.performer_id;
+    const oldPerformer = performers.find(p => p.id === oldPerformerId);
     const oldPerformerName = booking.performer?.name || 'Previous Performer';
 
     const updates: Partial<Booking> = { 
@@ -384,15 +405,27 @@ const App: React.FC = () => {
         if(apiError) throw apiError;
 
         addCommunication({ sender: 'Admin', recipient: 'admin', message: `Booking for ${booking.client_name} has been reassigned from ${oldPerformerName} to ${newPerformer.name}.`, type: 'admin_message' });
-        addCommunication({ sender: 'Admin', recipient: 'user', message: `An update on your booking: ${newPerformer.name} has now been assigned to your event. We are awaiting their confirmation.`, booking_id: booking.id, type: 'booking_update' });
-        addCommunication({ sender: 'Admin', recipient: oldPerformerId, message: `Your booking for ${booking.client_name} has been reassigned to another performer by an administrator.`, booking_id: booking.id, type: 'booking_update' });
-        addCommunication({ sender: 'Admin', recipient: newPerformerId, message: `You have been newly assigned a booking for ${booking.client_name}. Please review and accept/decline.`, booking_id: booking.id, type: 'booking_update' });
+        
+        const clientMessage = `An update on your booking: ${newPerformer.name} has now been assigned to your event. We are awaiting their confirmation.`;
+        addCommunication({ sender: 'Admin', recipient: 'user', message: clientMessage, booking_id: booking.id, type: 'booking_update' });
+        twilioService.notifyClientOfBookingUpdate(booking, clientMessage);
+        
+        if (oldPerformer) {
+            const oldPerformerMessage = `Your booking for ${booking.client_name} has been reassigned to another performer by an administrator.`;
+            addCommunication({ sender: 'Admin', recipient: oldPerformerId, message: oldPerformerMessage, booking_id: booking.id, type: 'booking_update' });
+            twilioService.notifyPerformerOfBookingUpdate(booking, oldPerformer, oldPerformerMessage);
+        }
+        
+        const newPerformerMessage = `You have been newly assigned a booking for ${booking.client_name}. Please review and accept/decline.`;
+        addCommunication({ sender: 'Admin', recipient: newPerformerId, message: newPerformerMessage, booking_id: booking.id, type: 'booking_update' });
+        twilioService.notifyPerformerOfBookingUpdate(booking, newPerformer, newPerformerMessage);
+
     } catch (err) {
         console.error("Failed to reassign performer:", err);
         setBookings(originalBookings);
         setError("Could not reassign performer.");
     }
-  };
+  }, [bookings, performers, addCommunication]);
 
   const handleBookingRequest = async (formState: BookingFormState, requestedPerformers: Performer[]) => {
      try {
@@ -405,6 +438,9 @@ const App: React.FC = () => {
         const firstBooking = newBookings![0];
         addCommunication({ sender: 'System', recipient: 'user', message: `🎉 Booking Request Sent! We've notified ${newBookings!.map(b=>b.performer?.name).join(', ')} of your request.`, booking_id: firstBooking.id, type: 'booking_update' });
         addCommunication({ sender: 'System', recipient: 'admin', message: `📥 New Booking Request: for ${formState.fullName} with ${newBookings!.map(b=>b.performer?.name).join(', ')}. Awaiting performer acceptance.`, type: 'admin_message' });
+        
+        twilioService.notifyClientOfBookingRequest(firstBooking);
+        requestedPerformers.forEach(p => twilioService.notifyPerformerOfBookingRequest(firstBooking, p));
 
         showPhoneMessage({ for: 'Client', content: <p>🎉 <strong>Request Sent!</strong><br />We've sent your request to <strong>{newBookings!.map(b => b.performer?.name).join(' & ')}</strong>. We'll notify you as soon as they respond!</p> });
 
@@ -504,6 +540,7 @@ const App: React.FC = () => {
     const isSenderPerformer = sender.role === 'performer';
     const recipient = isSenderPerformer ? booking.client_name : booking.performer_id;
     const recipientForNotification = isSenderPerformer ? 'Client' : 'Performer' as 'Client' | 'Performer';
+    const performer = performers.find(p => p.id === booking.performer_id);
     
     const commData: Omit<Communication, 'id' | 'created_at' | 'read'> = {
         booking_id: booking.id,
@@ -527,12 +564,20 @@ const App: React.FC = () => {
         
         // Show notification to recipient
         showPhoneMessage({ for: recipientForNotification, content: <p>💬 <strong>New Message from {sender.name}:</strong><br/>"{message}"</p> });
+        
+        // Send secure external notification
+        if (isSenderPerformer) {
+            twilioService.notifyClientOfNewMessage(booking);
+        } else if (performer) {
+            twilioService.notifyPerformerOfNewMessage(booking, performer);
+        }
+
     } catch (err) {
         console.error("Failed to send message:", err);
         // Revert optimistic update
         setCommunications(prev => prev.filter(c => c.id !== tempId));
     }
-  }, [showPhoneMessage, communications]);
+  }, [showPhoneMessage, communications, performers]);
 
 
   const uniqueCategories = useMemo(() => [...new Set(allServices.map(s => s.category))], []);

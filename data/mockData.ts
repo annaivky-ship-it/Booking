@@ -1,6 +1,7 @@
 
 
 
+
 import type { Performer, Booking, DoNotServeEntry, Service, Communication } from '../types';
 
 export const allServices: Service[] = [
@@ -36,6 +37,7 @@ export const mockPerformers: Performer[] = [
     service_areas: ['Perth North', 'Perth South'],
     status: 'available',
     created_at: new Date().toISOString(),
+    phone: '+61411222333',
   },
   {
     id: 6,
@@ -47,6 +49,8 @@ export const mockPerformers: Performer[] = [
     service_areas: ['Perth South', 'Southwest'],
     status: 'available',
     created_at: new Date().toISOString(),
+    phone: '+61422333444',
+    role: 'admin',
   },
   {
     id: 1,
@@ -58,6 +62,7 @@ export const mockPerformers: Performer[] = [
     service_areas: ['Perth North', 'Perth South', 'Southwest'],
     status: 'available',
     created_at: new Date().toISOString(),
+    phone: '+61433444555',
   },
   {
     id: 2,
@@ -69,6 +74,7 @@ export const mockPerformers: Performer[] = [
     service_areas: ['Perth South'],
     status: 'busy',
     created_at: new Date().toISOString(),
+    phone: '+61444555666',
   },
   {
     id: 3,
@@ -80,6 +86,7 @@ export const mockPerformers: Performer[] = [
     service_areas: ['Perth North', 'Northwest'],
     status: 'available',
     created_at: new Date().toISOString(),
+    phone: '+61455666777',
   },
   {
     id: 4,
@@ -91,6 +98,7 @@ export const mockPerformers: Performer[] = [
     service_areas: ['Southwest'],
     status: 'offline',
     created_at: new Date().toISOString(),
+    phone: '+61466777888',
   },
 ];
 
