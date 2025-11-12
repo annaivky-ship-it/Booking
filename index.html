@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍑</text></svg>">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flavor Entertainers | Premium Entertainment Booking</title>
+    <meta name="description" content="A premium platform to book professional entertainers in Western Australia. Secure, compliant, and professional." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700&family=Special+Elite&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --color-bg: #0A0A0A;
+        --color-bg-light: #18181B;
+        --color-border: #27272A;
+        --color-primary: #F97316; /* orange-500 */
+        --color-primary-hover: #EA580C; /* orange-600 */
+        --color-primary-light: #FB923C; /* orange-400 */
+      }
+      body {
+        background-color: var(--color-bg);
+        color: #A1A1AA; /* zinc-400 */
+        font-family: 'Inter', sans-serif;
+        background-image:
+          radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);
+        background-size: 20px 20px;
+      }
+      .font-logo-main {
+        font-family: 'Anton', sans-serif;
+      }
+      .font-logo-sub {
+        font-family: 'Special Elite', monospace;
+      }
+      h1, h2, h3, h4, .font-heading {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        color: #F4F4F5; /* zinc-100 */
+      }
+      
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--color-bg);
+      }
+      ::-webkit-scrollbar-thumb {
+        background-color: var(--color-primary-light);
+        border-radius: 10px;
+        border: 2px solid var(--color-bg);
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-primary);
+      }
+      @keyframes fade-in-down {
+        0% { opacity: 0; transform: translateY(-10px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in-down {
+        animation: fade-in-down 0.4s ease-out forwards;
+      }
+      @keyframes fade-in {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+      }
+      .animate-fade-in {
+        animation: fade-in 0.5s ease-in-out forwards;
+      }
+      @keyframes slide-in-up {
+        0% { transform: translateY(100%); opacity: 0; }
+        100% { transform: translateY(0); opacity: 1; }
+      }
+      .animate-slide-in-up {
+        animation: slide-in-up 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      }
+      .phone-popup-transition {
+        transition-property: transform, opacity;
+        transition-duration: 400ms;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      /* New Custom Styles for Enhanced UI */
+      .card-base {
+        background-color: var(--color-bg-light);
+        border: 1px solid var(--color-border);
+        border-radius: 1rem; /* 16px */
+        padding: 2rem; /* 32px */
+        transition: all 0.3s ease-in-out;
+      }
+      .card-base:hover {
+        border-color: rgba(249, 115, 22, 0.4);
+        box-shadow: 0 0 30px rgba(249, 115, 22, 0.1);
+      }
+      
+      .btn-primary {
+        background-color: var(--color-primary);
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(249, 115, 22, 0.2);
+      }
+      .btn-primary:hover {
+        background-color: var(--color-primary-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(249, 115, 22, 0.3);
+      }
+       .btn-primary:disabled {
+        background-color: #3f3f46; /* zinc-700 */
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+        color: #71717a;
+      }
+
+      .input-base {
+        width: 100%;
+        background-color: #09090b; /* zinc-950 */
+        border: 1px solid var(--color-border);
+        border-radius: 0.5rem; /* 8px */
+        padding: 0.75rem 1rem;
+        color: #f4f4f5; /* zinc-100 */
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      .input-base:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
+      }
+       .input-with-icon {
+        padding-left: 2.75rem;
+       }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.11.0",
+    "react/": "https://esm.sh/react@^19.1.1/",
+    "react": "https://esm.sh/react@^19.1.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.417.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
