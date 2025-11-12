@@ -105,3 +105,14 @@ export type PhoneMessage = {
   content: React.ReactNode;
   actions?: PhoneMessageAction[];
 } | null;
+
+export interface ApiError {
+  message: string;
+  code?: string;
+  details?: unknown;
+}
+
+export interface ApiResponse<T> {
+  data: T | null;
+  error: ApiError | null;
+}

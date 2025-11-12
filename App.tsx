@@ -17,13 +17,13 @@ import ServicesGallery from './components/ServicesGallery';
 // Fix: Import the DemoPhone component to resolve the 'Cannot find name' error.
 import DemoPhone from './components/DemoPhone';
 import { api, resetDemoData } from './services/api';
-import type { Performer, Booking, Role, PerformerStatus, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PhoneMessage, ServiceArea } from './types';
+import type { Performer, Booking, PerformerStatus, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PhoneMessage, ServiceArea } from './types';
 import { allServices } from './data/mockData';
 import { calculateBookingCost } from './utils/bookingUtils';
+import { useAuth, useAppData, useNotifications, useFilters } from './hooks';
 
 
 type GalleryView = 'available_now' | 'future_bookings' | 'services';
-type AuthedUser = { name: string; role: Role; id?: number; } | null;
 
 const BookingStickyFooter: React.FC<{
   performers: Performer[];
@@ -58,37 +58,24 @@ const BookingStickyFooter: React.FC<{
 
 
 const App: React.FC = () => {
+  // Custom hooks for state management
+  const { authedUser, showLogin, role, handleLogin, handleLogout, openLogin, closeLogin } = useAuth();
+  const { performers, setPerformers, bookings, setBookings, doNotServeList, setDoNotServeList,
+          communications, setCommunications, isLoading, error, fetchData } = useAppData();
+  const { phoneMessage, showPhoneMessage } = useNotifications();
+  const { searchQuery, setSearchQuery, serviceIdFilter, setServiceIdFilter,
+          serviceAreaFilter, setServiceAreaFilter } = useFilters();
+
+  // Local view state
   const [ageVerified, setAgeVerified] = useState(false);
   const [view, setView] = useState<GalleryView | 'profile' | 'booking' | 'performer_dashboard' | 'admin_dashboard' | 'do_not_serve' | 'client_dashboard'>('available_now');
   const [bookingOrigin, setBookingOrigin] = useState<GalleryView>('available_now');
   const [viewedPerformer, setViewedPerformer] = useState<Performer | null>(null);
   const [selectedForBooking, setSelectedForBooking] = useState<Performer[]>([]);
-  
-  const [authedUser, setAuthedUser] = useState<AuthedUser>(null);
-  const [showLogin, setShowLogin] = useState(false);
-
-  const [performers, setPerformers] = useState<Performer[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [doNotServeList, setDoNotServeList] = useState<DoNotServeEntry[]>([]);
-  const [communications, setCommunications] = useState<Communication[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [phoneMessage, setPhoneMessage] = useState<PhoneMessage>(null);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfService, setShowTermsOfService] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [serviceIdFilter, setServiceIdFilter] = useState<string | null>(null);
-  const [serviceAreaFilter, setServiceAreaFilter] = useState<ServiceArea | ''>('');
 
   const serviceAreas: ServiceArea[] = ['Perth North', 'Perth South', 'Southwest', 'Northwest'];
-  const role = authedUser?.role || 'user';
-  
-  const showPhoneMessage = useCallback((msg: PhoneMessage) => {
-    setPhoneMessage(msg);
-    setTimeout(() => {
-      setPhoneMessage(null);
-    }, 7000); // Message disappears after 7 seconds
-  }, []);
 
   const handleShowPrivacyPolicy = () => {
     window.scrollTo(0, 0);
@@ -119,32 +106,6 @@ const App: React.FC = () => {
   }, []);
 
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { performers: pData, bookings: bData, doNotServeList: dData, communications: cData } = await api.getInitialData();
-
-      if (pData.error) throw new Error(`Performers: ${pData.error.message}`);
-      setPerformers(pData.data as Performer[] || []);
-      
-      if (bData.error) throw new Error(`Bookings: ${bData.error.message}`);
-      setBookings(bData.data as Booking[] || []);
-
-      if (dData.error) throw new Error(`DNS List: ${dData.error.message}`);
-      setDoNotServeList(dData.data as DoNotServeEntry[] || []);
-
-      if (cData.error) throw new Error(`Communications: ${cData.error.message}`);
-      setCommunications(cData.data as Communication[] || []);
-
-    } catch (err: any) {
-      setError(`Failed to fetch data: ${err.message}.`);
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -158,19 +119,18 @@ const App: React.FC = () => {
     localStorage.setItem('ageVerified', 'true');
     setAgeVerified(true);
   };
-  
-  const handleLogin = (user: NonNullable<AuthedUser>) => {
-    setAuthedUser(user);
-    setShowLogin(false);
-    if (user.role === 'admin') {
+
+  const handleLoginWithNavigation = (name: string, role: 'user' | 'performer' | 'admin', id?: number) => {
+    handleLogin(name, role, id);
+    if (role === 'admin') {
       setView('admin_dashboard');
-    } else if (user.role === 'performer') {
+    } else if (role === 'performer') {
       setView('performer_dashboard');
     }
   };
 
-  const handleLogout = () => {
-    setAuthedUser(null);
+  const handleLogoutWithCleanup = () => {
+    handleLogout();
     localStorage.removeItem('clientEmail');
     resetDemoData(); // Fix: Reset demo data for a clean session.
     setView('available_now');
@@ -418,10 +378,11 @@ const App: React.FC = () => {
                     { label: '❌ Decline Booking', onClick: () => handlePerformerBookingDecision(firstBooking.id, 'declined'), style: 'secondary' },
                 ]
             });
-        }, 6000); 
+        }, 6000);
         return { success: true, message: 'Booking submitted', bookingIds: newBookings!.map(b => b.id) };
-    } catch(err: any) {
-        return { success: false, message: err.message || 'An unknown error occurred.' };
+    } catch(err) {
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+        return { success: false, message: errorMessage };
     }
   };
 
@@ -481,13 +442,16 @@ const App: React.FC = () => {
   };
   
   const handleMarkMessagesAsRead = useCallback(async (bookingId: string, recipient: string | number) => {
-    // Optimistic update
-    const originalComms = communications;
-    setCommunications(prev => prev.map(c => 
-        (c.booking_id === bookingId && c.recipient === recipient && !c.read) 
-        ? { ...c, read: true } 
-        : c
-    ));
+    // Store original state for potential rollback
+    let originalComms: Communication[] = [];
+    setCommunications(prev => {
+        originalComms = prev;
+        return prev.map(c =>
+            (c.booking_id === bookingId && c.recipient === recipient && !c.read)
+            ? { ...c, read: true }
+            : c
+        );
+    });
 
     try {
         const { error } = await api.markMessagesAsRead(bookingId, recipient);
@@ -496,7 +460,7 @@ const App: React.FC = () => {
         console.error("Failed to mark messages as read:", err);
         setCommunications(originalComms); // Revert
     }
-  }, [communications]);
+  }, []);
 
   const handleSendMessage = useCallback(async (booking: Booking, sender: { name: string, role: Role }, message: string) => {
     if (!booking.performer) return;
@@ -532,7 +496,7 @@ const App: React.FC = () => {
         // Revert optimistic update
         setCommunications(prev => prev.filter(c => c.id !== tempId));
     }
-  }, [showPhoneMessage, communications]);
+  }, [showPhoneMessage]);
 
 
   const uniqueCategories = useMemo(() => [...new Set(allServices.map(s => s.category))], []);
@@ -841,7 +805,7 @@ const App: React.FC = () => {
           {authedUser ? (
             <>
               <span className="text-sm text-zinc-300 hidden sm:block">Welcome, <strong className="font-semibold text-white">{authedUser.name}</strong></span>
-              <button onClick={handleLogout} className="bg-zinc-800 hover:bg-zinc-700 text-white flex items-center gap-2 text-sm p-2 sm:px-4 sm:py-2 rounded-lg transition-colors" title="Logout">
+              <button onClick={handleLogoutWithCleanup} className="bg-zinc-800 hover:bg-zinc-700 text-white flex items-center gap-2 text-sm p-2 sm:px-4 sm:py-2 rounded-lg transition-colors" title="Logout">
                   <LogOut className="h-4 w-4" />
                   <span className="hidden sm:inline">Logout</span>
               </button>
@@ -856,7 +820,7 @@ const App: React.FC = () => {
                   <BookOpen className="h-4 w-4" />
                   <span className="hidden sm:inline">My Bookings</span>
                </button>
-                <button onClick={() => setShowLogin(true)} className="btn-primary flex items-center gap-2 text-sm p-2 sm:px-4 sm:py-2">
+                <button onClick={openLogin} className="btn-primary flex items-center gap-2 text-sm p-2 sm:px-4 sm:py-2">
                    <LogIn className="h-4 w-4" />
                    <span className="hidden sm:inline">Login</span>
                 </button>
@@ -871,7 +835,7 @@ const App: React.FC = () => {
       {phoneMessage && <DemoPhone message={phoneMessage} onClose={() => setPhoneMessage(null)} />}
       {showPrivacyPolicy && <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />}
       {showTermsOfService && <TermsOfService onClose={() => setShowTermsOfService(false)} />}
-      {showLogin && <Login onLogin={handleLogin} onClose={() => setShowLogin(false)} performers={performers} />}
+      {showLogin && <Login onLogin={handleLoginWithNavigation} onClose={closeLogin} performers={performers} />}
        <BookingStickyFooter performers={selectedForBooking} onProceed={handleProceedToBooking} />
     </div>
   );

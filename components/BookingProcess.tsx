@@ -432,8 +432,9 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
             } else {
                 throw new Error(result.message);
             }
-        } catch(err: any) {
-            setError(err.message || 'An unexpected error occurred during submission.');
+        } catch(err) {
+            const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during submission.';
+            setError(errorMessage);
             setCurrentStep(1);
         } finally {
             setIsSubmitting(false);
@@ -455,8 +456,9 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
             if (onUpdateBookingStatus) {
                 await Promise.all(bookingIds.map(id => onUpdateBookingStatus(id, 'pending_deposit_confirmation')));
             }
-        } catch (err: any) {
-            setError(`Failed to confirm payment: ${err.message || 'Please try again or contact support.'}`);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Please try again or contact support.';
+            setError(`Failed to confirm payment: ${errorMessage}`);
         } finally {
             setIsSubmitting(false);
         }

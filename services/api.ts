@@ -1,7 +1,7 @@
 // services/api.ts
 import { supabase } from './supabaseClient';
 import { mockPerformers, mockBookings, mockDoNotServeList, mockCommunications } from '../data/mockData';
-import type { Performer, Booking, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PerformerStatus } from '../types';
+import type { Performer, Booking, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PerformerStatus, ApiError, ApiResponse } from '../types';
 import { BookingFormState } from '../components/BookingProcess';
 
 const isDemoMode = !supabase;
@@ -47,7 +47,7 @@ export const api = {
 
   // --- MUTATIONS ---
 
-  async addCommunication(comm: Omit<Communication, 'id' | 'created_at' | 'read'>): Promise<{ data: Communication[] | null, error: any }> {
+  async addCommunication(comm: Omit<Communication, 'id' | 'created_at' | 'read'>): Promise<ApiResponse<Communication[]>> {
     if (isDemoMode) {
       await delay(200);
       const newComm: Communication = {
@@ -63,7 +63,7 @@ export const api = {
     return supabase!.from('communications').insert({ ...comm, read: false }).select();
   },
 
-  async markMessagesAsRead(bookingId: string, recipient: string | number): Promise<{ data: any | null, error: any }> {
+  async markMessagesAsRead(bookingId: string, recipient: string | number): Promise<ApiResponse<{ success: boolean }>> {
     if (isDemoMode) {
         await delay(100);
         demoCommunications.forEach((c: Communication) => {
@@ -81,7 +81,7 @@ export const api = {
         .eq('read', false);
   },
   
-  async updatePerformerStatus(performerId: number, status: PerformerStatus): Promise<{ data: Performer[] | null, error: any }> {
+  async updatePerformerStatus(performerId: number, status: PerformerStatus): Promise<ApiResponse<Performer[]>> {
     if (isDemoMode) {
         await delay(800);
         const performer = demoPerformers.find((p: Performer) => p.id === performerId);
@@ -94,7 +94,7 @@ export const api = {
     return supabase!.from('performers').update({ status }).eq('id', performerId).select();
   },
 
-  async updateBookingStatus(bookingId: string, status: BookingStatus, updates: Partial<Booking> = {}): Promise<{ data: Booking[] | null, error: any }> {
+  async updateBookingStatus(bookingId: string, status: BookingStatus, updates: Partial<Booking> = {}): Promise<ApiResponse<Booking[]>> {
     if (isDemoMode) {
       await delay(1000);
       const bookingIndex = demoBookings.findIndex((b: Booking) => b.id === bookingId);
@@ -107,7 +107,7 @@ export const api = {
     return supabase!.from('bookings').update({ status, ...updates }).eq('id', bookingId).select('*, performer:performer_id(id, name)');
   },
 
-  async updateDoNotServeStatus(entryId: string, status: DoNotServeStatus): Promise<{ data: DoNotServeEntry[] | null, error: any }> {
+  async updateDoNotServeStatus(entryId: string, status: DoNotServeStatus): Promise<ApiResponse<DoNotServeEntry[]>> {
     if (isDemoMode) {
       await delay(1000);
       const entry = demoDoNotServeList.find((e: DoNotServeEntry) => e.id === entryId);
@@ -120,7 +120,7 @@ export const api = {
     return supabase!.from('do_not_serve').update({ status }).eq('id', entryId).select('*, performer:submitted_by_performer_id(name)');
   },
 
-  async createDoNotServeEntry(newEntry: Omit<DoNotServeEntry, 'id' | 'created_at' | 'status' | 'performer'>): Promise<{ data: DoNotServeEntry[] | null, error: any }> {
+  async createDoNotServeEntry(newEntry: Omit<DoNotServeEntry, 'id' | 'created_at' | 'status' | 'performer'>): Promise<ApiResponse<DoNotServeEntry[]>> {
      if (isDemoMode) {
           await delay(1200);
           const performer = demoPerformers.find((p: Performer) => p.id === newEntry.submitted_by_performer_id);
@@ -137,7 +137,7 @@ export const api = {
       return supabase!.from('do_not_serve').insert(newEntry).select('*, performer:submitted_by_performer_id(name)');
   },
 
-  async createBookingRequest(formState: BookingFormState, requestedPerformers: Performer[]): Promise<{ data: Booking[] | null, error: any }> {
+  async createBookingRequest(formState: BookingFormState, requestedPerformers: Performer[]): Promise<ApiResponse<Booking[]>> {
      if (isDemoMode) {
         await delay(1500);
         const approvedDNS = demoDoNotServeList.filter((e: DoNotServeEntry) => e.status === 'approved');

@@ -64,9 +64,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
     }
 
     return result.sort((a, b) => {
-        let valA: any = '';
-        let valB: any = '';
-        
+        let valA: string | number = '';
+        let valB: string | number = '';
+
         switch (sortField) {
             case 'event_date':
                 valA = new Date(a.event_date).getTime();
@@ -85,7 +85,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
                 valB = b.status;
                 break;
         }
-        
+
         if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
         if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
         return 0;
